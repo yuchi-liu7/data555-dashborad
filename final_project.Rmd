@@ -1,0 +1,714 @@
+---
+title: "Measurement error in piecewise linear regression"
+author: "Yuchi Liu"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: fill
+    navbar:
+      - { title: "GitHub", href: "https://github.com/yuchi-liu7/data555-dashborad", align: right, icon: "fa-github" }
+runtime: shiny
+---
+
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(shiny)
+library(tidyverse)
+library(plotly)
+library(DT)
+library(htmltools)
+
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+
+```{css}
+
+.navbar {
+  background-color: #5B9BD5 !important;
+  border-bottom: 3px solid #7DB8E8;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.navbar-brand, .navbar .nav > li > a {
+  color: #FFFFFF !important;
+  font-weight: 600;
+  transition: color 0.3s;
+}
+
+.navbar .nav > li > a:hover {
+  color: #7DB8E8 !important;
+}
+
+.nav-tabs > li.active > a,
+.nav-tabs > li.active > a:focus,
+.nav-tabs > li.active > a:hover {
+  color: #5B9BD5 !important;
+  border-top: 3px solid #5B9BD5 !important;
+  font-weight: 700;
+  background-color: #FFFFFF !important;
+}
+
+.nav-tabs > li > a {
+  color: #1D3340;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.nav-tabs > li > a:hover {
+  background-color: #F5F5F5;
+  color: #5B9BD5;
+}
+
+.info-card {
+  background-color: #FFFFFF;
+  border: 2px solid  #5B9BD5;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.info-card h3 {
+  color:  #5B9BD5;
+  font-weight: 700;
+  margin-top: 0;
+  font-size: 1.8rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.info-card h4 {
+  color:  #5B9BD5;
+  font-weight: 700;
+  margin-top: 16px;
+  font-size: 1.5rem;
+}
+
+
+.hero-banner {
+  background-color:  #5B9BD5;
+  color: #FFFFFF;
+  padding: 30px 35px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+}
+
+.hero-banner h3 {
+  margin-top: 0;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hero-banner p {
+  margin-bottom: 0;
+  opacity: 0.95;
+  line-height: 1.7;
+  font-size: 1.4rem;
+}
+
+
+.key-takeaways {
+  background-color: #FFFFFF;
+  border: 2px solid #E07B54;
+  padding: 20px 24px;
+  line-height: 1.8;
+  font-size: 15px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.key-takeaways strong {
+  color:  #5B9BD5;
+  font-size: 1.2rem;
+}
+
+.key-takeaways ul {
+  margin-top: 12px;
+}
+
+.key-takeaways li {
+  margin-bottom: 10px;
+  color: #1D3340;
+}
+
+
+.section.sidebar {
+  background-color: #F8F9FA;
+  border-right: 2px solid #7DB8E8;
+  padding: 20px;
+  font-size: 1.3rem;
+}
+
+.section.sidebar .form-group label {
+  color:  #5B9BD5;
+  font-weight: 600;
+  font-size: 1.5rem;
+  display: block !important;
+  margin-bottom: 8px !important;
+}
+
+.section.sidebar .checkbox label,
+.section.sidebar .radio label {
+  font-size: 1.3rem;
+}
+
+.section.sidebar .selectize-control {
+  font-size: 1.2rem;
+}
+
+
+@media (max-width: 768px) {
+  .chart-title {
+    font-size: 14px !important;
+  }
+  
+  .section.sidebar {
+    font-size: 12px;
+  }
+  
+  .plotly {
+    min-height: 400px;
+  }
+  
+  .dataTables_wrapper {
+    font-size: 11px;
+  }
+  
+  .hero-banner h3 {
+    font-size: 1.5rem;
+  }
+  
+  .info-card h3 {
+    font-size: 1.4rem;
+  }
+}
+
+.plotly .hoverlayer .hovertext {
+  font-size: 13px !important;
+  background-color: #1D3340 !important;
+}
+
+.btn-primary {
+  background-color:  #5B9BD5!important;
+  border-color:  #5B9BD5!important;
+  transition: all 0.3s;
+}
+
+.btn-primary:hover {
+  background-color: #7DB8E8 !important;
+  border-color: #7DB8E8 !important;
+  box-shadow: 0 2px 8px rgba(42, 111, 127, 0.3);
+}
+```
+
+
+
+
+
+About the Data
+======================================================================
+
+Row
+-----------------------------------------------------------------------
+
+```{r}
+div(
+  div(class = "hero-banner",
+    tags$h3(
+      icon("chart-line"),
+      "Project Overview"
+    ),
+    tags$p(
+      "This interactive dashboard demonstrates the impact of measurement error on piecewise linear regression through Monte Carlo simulation. Understanding these effects is crucial for establishing accurate safety thresholds in environmental health and public policy."
+    )
+  ),
+  
+
+  div(class = "info-card",
+    tags$h3(
+      icon("database"),
+      "Dataset Description"
+    ),
+    
+    tags$h4(
+      icon("folder-open"),
+      "Data Source"
+    ),
+    tags$p(
+      "This dataset was generated through simulation to study measurement error in piecewise linear regression models."
+    ),
+    
+    tags$h4(
+      icon("users"),
+      "Sample Size"
+    ),
+    tags$p(
+      "Variable sample sizes (100, 250, or 500 observations) allow users to explore how estimation performance changes with increasing data."
+    ),
+    
+    tags$h4(
+      icon("flask"),
+      "Data Collection Method"
+    ),
+    tags$p(
+      "Data was simulated using SAS statistical software, where:"
+    ),
+    tags$ul(
+      tags$li("True exposure values follow a normal distribution (mean=3, SD=1)"),
+      tags$li("Measurement error follows a normal distribution (mean=0, SD=√0.5)"),
+      tags$li("Outcomes are generated based on a known piecewise linear relationship with a breakpoint at 3.5 units")
+    ),
+    
+    tags$h4(
+      icon("hospital"),
+      "Study Population"
+    ),
+    tags$p(
+      "Simulated exposure-outcome relationships representing scenarios common in environmental health and epidemiology, where the effect of an exposure changes after reaching a threshold value."
+    ),
+    
+    tags$h4(
+      icon("calendar"),
+      "Time Period"
+    ),
+    tags$p(
+      "Educational simulation dataset created in March 2026 for demonstrating statistical methodology."
+    )
+  ),
+  
+
+  div(class = "info-card",
+    tags$h3(
+      icon("globe"),
+      "Why This Matters"
+    ),
+    tags$p(
+      "Understanding measurement error in threshold-based relationships is ",
+      tags$strong("critical for public health policy"),
+      ". Many environmental and health regulations depend on accurate estimation of exposure-response relationships with thresholds (e.g., air quality standards, chemical exposure limits)."
+    ),
+    tags$p(
+      "This dashboard demonstrates how ignoring measurement error can lead to ",
+      tags$strong("biased safety thresholds"),
+      ", potentially resulting in inadequate public health protections or unnecessarily restrictive policies. Proper statistical correction methods (maximum likelihood) can recover accurate estimates and support evidence-based decision making."
+    ),
+    tags$p(
+      tags$strong("Source Code: "),
+      tags$a(
+        "View on GitHub",
+        href = "https://github.com/yuchi-liu7/data555-dashborad",
+        target = "_blank",
+        style = "color: #2A6F7F; text-decoration: underline;"
+      )
+    )
+  )
+)
+```
+
+
+Question 1: Bias Visualization
+======================================================================
+
+Sidebar {.sidebar}
+-----------------------------------------------------------------------
+
+```{r}
+checkboxGroupInput(
+  inputId = "show_layers",
+  label = "Select type of approach:",
+  choices = c("True data", "Observed data", "Maximum likelihood fit", "Naive fit"),
+  selected = c("True data", "Observed data", "Maximum likelihood fit", "Naive fit")
+)
+
+selectInput(
+  inputId = "n_sample",
+  label = "Select sample size:",
+  choices = c(100, 250, 500),
+  selected = 100
+)
+
+
+```
+
+
+Row 
+------------------------------------------------------------------------------
+
+### Q1. How does measurement error bias slope estimates in a piecewise linear regression model?
+
+
+```{r}
+
+renderPlotly({
+
+  library(tidyverse)
+  library(plotly)
+
+  set.seed(123)
+
+  n <- as.numeric(input$n_sample)
+  xstar <- 3.5
+  sigsqu <- 0.5
+  sigsqe <- 0.5
+  mux <- 3
+  sigsqx <- 1
+
+  bet0 <- 0
+  bet1 <- 1
+  bet2 <- 2
+
+  sim_data <- tibble(
+    x = rnorm(n, mean = mux, sd = sqrt(sigsqx)),
+    u = rnorm(n, mean = 0, sd = sqrt(sigsqu))
+  ) %>%
+    mutate(
+      z = x + u,
+      x1 = x,
+      x2 = pmax(x - xstar, 0),
+      z1 = z,
+      z2 = pmax(z - xstar, 0),
+      y = bet0 + bet1 * x1 + bet2 * x2 + rnorm(n, mean = 0, sd = sqrt(sigsqe))
+    )
+
+  # fit models
+  
+  fit_true  <- lm(y ~ x1 + x2, data = sim_data)
+  fit_naive <- lm(y ~ z1 + z2, data = sim_data)
+
+  x_grid <- seq(-1, 8, by = 0.05)
+
+  fitted_df <- tibble(x = x_grid) %>%
+    mutate(
+      x1 = x,
+      x2 = pmax(x - xstar, 0),
+      z1 = x,
+      z2 = pmax(x - xstar, 0)
+    )
+
+  fitted_df$y_true  <- predict(fit_true,  newdata = fitted_df)
+  fitted_df$y_naive <- predict(fit_naive, newdata = fitted_df)
+
+  p <- plot_ly()
+  
+  if ("True data" %in% input$show_layers) {
+    p <- p %>%
+      add_markers(
+        data = sim_data,
+        x = ~x,
+        y = ~y,
+        marker = list(
+          color = "#1f77b4",  
+          symbol = "circle-open",
+          size = 5,
+          line = list(width = 1.5)
+        ),
+        opacity = 0.8,
+        showlegend = FALSE,
+        hovertemplate = paste(
+          "<b>True Data Point</b><br>",
+  "True Exposure: %{x:.2f} units<br>",
+  "Outcome: %{y:.2f} Y units",
+  "<extra></extra>"
+        )
+      )
+  }
+
+  if ("Observed data" %in% input$show_layers) {
+    p <- p %>%
+      add_markers(
+        data = sim_data,
+        x = ~z,
+        y = ~y,
+        marker = list(
+          color = "#ff7f0e", 
+          symbol = "cross",
+          size = 6
+        ),
+        opacity = 0.5,
+        showlegend = FALSE,
+        hovertemplate = paste(
+           "<b>Observed Data Point</b><br>",
+  "Observed Exposure: %{x:.2f} units<br>",
+  "Outcome: %{y:.2f} Y units",
+  "<extra></extra>"
+        )
+      )
+  }
+
+  if ("Maximum likelihood fit" %in% input$show_layers) {
+    p <- p %>%
+      add_lines(
+        data = fitted_df,
+        x = ~x,
+        y = ~y_true,
+        line = list(width = 4),
+        showlegend = FALSE,
+        hovertemplate = paste(
+         "<b>Maximum Likelihood Fit</b><br>",
+  "Exposure: %{x:.2f} units<br>",
+  "Predicted Outcome: %{y:.2f} Y units",
+  "<extra></extra>"
+        )
+      )
+  }
+
+  if ("Naive fit" %in% input$show_layers) {
+    p <- p %>%
+      add_lines(
+        data = fitted_df,
+        x = ~x,
+        y = ~y_naive,
+        line = list(width = 4, dash = "dash"),
+        showlegend = FALSE,
+        hovertemplate = paste(
+         "<b>Naive Fit</b><br>",
+  "Exposure: %{x:.2f} units<br>",
+  "Predicted Outcome: %{y:.2f} Y units",
+  "<extra></extra>"
+        )
+      )
+  }
+
+  label_df <- tibble()
+
+  if ("Maximum likelihood fit" %in% input$show_layers) {
+    label_df <- bind_rows(
+      label_df,
+      tibble(
+        x = max(fitted_df$x)-1.7,
+        y = tail(fitted_df$y_true, 1),
+        lab = "Maximum likelihood"
+      )
+    )
+  }
+
+  if ("Naive fit" %in% input$show_layers) {
+    label_df <- bind_rows(
+      label_df,
+      tibble(
+        x = max(fitted_df$x)-1,
+        y = tail(fitted_df$y_naive, 1),
+        lab = "Naive"
+      )
+    )
+  }
+
+  if (nrow(label_df) > 0) {
+    p <- p %>%
+      add_text(
+        data = label_df,
+        x = ~x,
+        y = ~y,
+        text = ~lab,
+        textposition = "middle right",
+        showlegend = FALSE,
+        hoverinfo = "none"
+      )
+  }
+  
+  p %>%
+    layout(
+      title = list(
+        text = paste0(
+      "<b>Piecewise Linear Regression: Impact of Measurement Error</b><br>",
+      "<sub>Sample Size: ", n, " | Knot at 3.5 units</sub>"
+         ),
+    font = list(size = 16)
+      ),
+      xaxis = list(
+          title = "Exposure (units)",
+          range = c(-1, 8.5),
+          rangeslider = list(visible = FALSE)
+      ),
+      yaxis = list(
+        title = "Outcome (Y units)"
+      ),
+      shapes = list(
+        list(
+          type = "line",
+          x0 = xstar, x1 = xstar,
+          y0 = 0, y1 = 1,
+          yref = "paper",
+          line = list(dash = "dot", width = 1.5)
+        )
+      ),
+      annotations = list(
+        list(
+          x = xstar,
+          y = 0,
+          text = "Knot: 3.5",
+          showarrow = TRUE,
+          arrowhead = 2
+        )
+      )
+    )
+
+})
+p
+```
+
+
+Row {data-height=220}
+-----------------------------------------------------------------------------------------------------------------
+
+```{r}
+div(class = "key-takeaways",
+  tags$strong(
+    icon("lightbulb"),
+    "Key Takeaways"
+  ),
+  tags$ul(
+    tags$li("Measurement error leads to biased slope estimates in the piecewise linear regression model, especially in the segment after the knot."),
+    tags$li("The naive approach attenuates the slope and distorts the relationship between exposure and outcome."),
+    tags$li("This demonstrates that ignoring measurement error can result in misleading inference about both the magnitude and structure of the effect."),
+    tags$li("As sample size increases, the maximum likelihood estimates approach the true parameter values, indicating improved accuracy and consistency.")
+  )
+)
+```
+
+
+
+Question 2: Performance Metrics
+======================================================================
+
+
+Sidebar {.sidebar}
+------------------------------------------------------------------------------
+```{r}
+div(
+  style = "margin-top: 45px;",
+  
+  selectInput(
+    inputId = "param_q2",
+    label = "Select parameter:",
+    choices = c(
+      "Intercept (β₀)",
+      "Slope before knot (β₁)",
+      "Slope after knot (β₂)"
+    ),
+    selected = "Intercept (β₀)"
+  ),
+
+  checkboxGroupInput(
+    inputId = "method_q2",
+    label = "Select method(s):",
+    choices = c("Naive", "Maximum likelihood"),
+    selected = c("Naive", "Maximum likelihood")
+  ),
+
+  checkboxGroupInput(
+    inputId = "sample_size_q2",
+    label = "Select sample size(s):",
+    choices = c(100, 250, 500),
+    selected = c(100, 250, 500)
+  )
+)
+
+```
+
+
+
+Row {data-height=550}
+------------------------------------------------------------------------------
+
+### Q2. Does maximum likelihood correction recover unbiased estimates as sample size increases?
+
+```{r}
+
+renderDT({
+
+  summary_data <- tribble(
+    ~parameter, ~method, ~sample_size, ~mean_estimate, ~bias, ~standard_deviation, ~coverage,
+    "Intercept (β₀)", "Naive", 100, 0.89, 0.89, 0.36, 0.38,
+    "Intercept (β₀)", "Naive", 250, 0.90, 0.90, 0.21, 0.30,
+    "Intercept (β₀)", "Naive", 500, 0.90, 0.90, 0.15, 0.00,
+    "Intercept (β₀)", "Maximum likelihood",    100, -0.06, -0.06, 0.61, 0.95,
+    "Intercept (β₀)", "Maximum likelihood",    250, -0.01,-0.01, 0.38, 0.95,
+    "Intercept (β₀)", "Maximum likelihood",    500, -0.01, -0.01, 0.25, 0.95,
+
+    "Slope before knot (β₁)", "Naive", 100, 0.74,-0.26, 0.15, 0.64,
+    "Slope before knot (β₁)", "Naive", 250, 0.74,-0.26, 0.09, 0.26,
+    "Slope before knot (β₁)", "Naive", 500, 0.74,-0.26, 0.06, 0.04,
+    "Slope before knot (β₁)", "Maximum likelihood",    100, 1.05,0.05, 0.38, 0.91,
+    "Slope before knot (β₁)", "Maximum likelihood",    250, 0.99,-0.01, 0.30, 0.94,
+    "Slope before knot (β₁)", "Maximum likelihood",    500, 1.01, 0.01, 0.11, 0.95,
+
+    "Slope after knot (β₂)", "Naive", 100, 0.97,-1.03, 0.45, 0.26,
+    "Slope after knot (β₂)", "Naive", 250, 0.97,-1.03, 0.28, 0.02,
+    "Slope after knot (β₂)", "Naive", 500, 0.98,-1.02, 0.19, 0.00,
+    "Slope after knot (β₂)", "Maximum likelihood",    100, 2.02,0.02, 0.55, 0.91,
+    "Slope after knot (β₂)", "Maximum likelihood",    250, 2.01,0.01, 0.33, 0.94,
+    "Slope after knot (β₂)", "Maximum likelihood",    500, 2.00, 0.00, 0.22, 0.95
+  )
+
+  df_show <- summary_data %>%
+    filter(
+      parameter == input$param_q2,
+      method %in% input$method_q2,
+      sample_size %in% as.numeric(input$sample_size_q2)
+    ) %>%
+    arrange(sample_size, method) %>%
+    mutate(
+      mean_estimate = sprintf("%.2f", mean_estimate),
+      bias = sprintf("%.2f", bias),
+      standard_deviation = sprintf("%.2f", standard_deviation),
+      coverage = sprintf("%.2f", coverage)
+    ) %>%
+    rename(
+      Parameter = parameter,
+      Method = method,
+      `Sample size` = sample_size,
+      `Mean estimate` = mean_estimate,
+      Bias = bias,
+      `standard deviation`= standard_deviation,
+      Coverage = coverage
+    )
+
+  datatable(
+    df_show,
+    rownames = FALSE,
+    class = "compact stripe",
+    filter = 'top',
+    options = list(
+      pageLength = 10,
+      autoWidth = FALSE,
+      dom = "tip",
+      columnDefs = list(
+        list(className = "dt-center", targets = "_all")
+      )
+    ),
+    caption = htmltools::tags$caption(
+      style = "caption-side: top; text-align: left; font-size: 16px; font-weight: bold;",
+      paste("Performance summary for", input$param_q2)
+    )
+  )
+})
+```
+
+Row {data-height=250}
+-----------------------------------------------------------------------
+
+```{r}
+div(class = "key-takeaways",
+  tags$strong(
+    icon("lightbulb"),
+    "Key Takeaways"
+  ),
+  tags$ul(
+    tags$li("The maximum likelihood estimator consistently shows smaller bias compared to the naive estimator across all sample sizes."),
+    tags$li("As sample size increases, the maximum likelihood estimates approach the true parameter values, indicating improved accuracy and consistency."),
+    tags$li("Coverage probabilities for the maximum likelihood method are substantially higher and closer to the nominal level, while the naive method shows poor coverage."),
+    tags$li("These results suggest that maximum likelihood correction effectively mitigates bias due to measurement error and becomes more reliable as sample size increases.")
+  )
+)
+```
+
+
+
+
+
